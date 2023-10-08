@@ -1,2 +1,0 @@
-# devopslab
-auto-formation

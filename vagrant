@@ -1,0 +1,142 @@
+# installation de chocolatey
+ 
+ Pour installer Chocolatey à l'aide de PowerShell, vous pouvez suivre ces étapes :
+
+1. Ouvrez PowerShell en tant qu'administrateur. Pour ce faire, recherchez "PowerShell" dans le menu Démarrer, cliquez avec le bouton droit sur "Windows PowerShell" ou "Windows Terminal" (selon votre version de Windows) et choisissez "Exécuter en tant qu'administrateur".
+
+2. Vérifiez si l'exécution de scripts PowerShell est autorisée sur votre système. Vous pouvez le faire en exécutant la commande suivante :
+
+```powershell
+Get-ExecutionPolicy
+```
+
+Si la politique est définie sur "Restricted", vous devrez peut-être la modifier pour permettre l'exécution de scripts. Vous pouvez le faire avec la commande suivante (exécutez-la en tant qu'administrateur) :
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+```
+
+3. Maintenant, vous pouvez installer Chocolatey en utilisant la commande suivante :
+
+```powershell
+iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+```
+
+Cette commande téléchargera et exécutera le script d'installation de Chocolatey.
+
+4. Une fois l'installation terminée, vous devrez peut-être fermer et rouvrir PowerShell pour que les modifications prennent effet.
+
+5. Pour vérifier que Chocolatey a été installé avec succès, vous pouvez exécuter la commande suivante :
+
+```powershell
+choco --version
+```
+
+Cela devrait afficher la version de Chocolatey que vous avez installée.
+
+Vous avez maintenant installé Chocolatey sur votre système à l'aide de PowerShell. Vous pouvez utiliser Chocolatey pour installer, mettre à jour et gérer facilement des packages logiciels sur Windows.
+
+
+# Installation de Virtual box et de vagrant
+
+```powershell
+
+choco install virtualbox --version=7.0.8 -y
+
+```
+
+```powershell
+
+choco install vagrant --version=2.3.4 -y
+
+```
+
+# création du  répertoire de travail
+
+ créer un dossier au bureau nommé tuto 
+
+ ```powershell
+
+cd C:\Users\Users1\OneDrive\Desktop\tuto
+
+```
+ 
+ ```powershell
+
+vagrant init
+
+```
+
+
+# script d'installation des différents os
+
+ ```powershell
+
+vagrant box add generic/rhel8
+
+```
+```powershell
+
+vagrant box add ubuntu/bionic64
+
+```
+
+```powershell
+
+vagrant box add khalilinux/rolling
+
+```
+ ```powershell
+
+vagrant box add centos/7
+
+```
+ 
+ # contenu du vagrantfile
+
+ # -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  etcHosts = ""
+  ssh_config = "sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config"
+  
+  # Liste des systèmes d'exploitation
+  os_list = ["centos/7", "generic/rhel8", "ubuntu/bionic64"]
+
+  # Liste des noms d'hôtes et des adresses IP
+  NODES = [
+    { :hostname => "serveur-prometheus", :ip => "172.16.16.30", :cpus => 1, :mem => 1024, :os => os_list[0] },
+    { :hostname => "serveur-debian", :ip => "172.16.16.31", :cpus => 1, :mem => 1024, :os => os_list[1] },
+    { :hostname => "serveur-test", :ip => "172.16.16.40", :cpus => 1, :mem => 1024, :os => os_list[2] },
+    { :hostname => "main-bdd", :ip => "172.16.16.45", :cpus => 1, :mem => 1024, :os => os_list[2] }
+  ]
+
+  # Définition de /etc/hosts pour tous les serveurs
+  NODES.each do |node|
+    etcHosts += "echo '" + node[:ip] + "   " + node[:hostname] + "' >> /etc/hosts" + "\n"
+  end
+
+  # Exécution de l'installation
+  NODES.each do |node|
+    config.vm.define node[:hostname] do |cfg|
+      cfg.vm.box = node[:os]
+      cfg.vm.hostname = node[:hostname]
+      cfg.vm.network "private_network", ip: node[:ip]
+      cfg.vm.provider "virtualbox" do |v|
+        v.customize [ "modifyvm", :id, "--cpus", node[:cpus] ]
+        v.customize [ "modifyvm", :id, "--memory", node[:mem] ]
+        v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+        v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+        v.customize ["modifyvm", :id, "--name", node[:hostname] ]
+      end
+
+      # Pour tous
+      cfg.vm.provision :shell, :inline => etcHosts
+      cfg.vm.provision "shell", inline: <<-SHELL
+        #{ssh_config}
+        systemctl restart sshd.service || /etc/rc.d/rc.sshd restart
+      SHELL
+    end
+  end
+end
