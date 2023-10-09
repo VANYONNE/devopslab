@@ -140,3 +140,10 @@ Vagrant.configure("2") do |config|
     end
   end
 end
+
+
+# commandes vagrant utiles
+ vagrant init
+ vagrant ssh 
+ vagrant destroy
+ vagrant up
